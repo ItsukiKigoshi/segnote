@@ -26,7 +26,7 @@
             ]
           );
           buildInputs = with pkgs;[
-            python314
+            python311
             uv
             ffmpeg
             cacert
