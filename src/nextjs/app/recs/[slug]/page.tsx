@@ -14,12 +14,11 @@ interface MockData {
   segments: Segment[];
 }
 
-const TYPE_LABELS: Record<Segment["type"], string> = {
-  music: "Music",
-  speech: "Speech",
-  noise: "Noise",
-  noEnergy: "Silence",
-};
+interface GroupedSegment {
+  type: "music" | "other";
+  start: number;
+  end: number;
+}
 
 export default function Page({
   params,
@@ -36,6 +35,7 @@ export default function Page({
       .then((data) => setMockData(data))
       .catch((err) => console.error("Failed to load mock data:", err));
   }, []);
+
   const handleJump = (seconds: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = seconds;
@@ -46,6 +46,22 @@ export default function Page({
   if (!mockData) {
     return <p>Loading rehearsal data...</p>;
   }
+
+  const groupedSegments: GroupedSegment[] = [];
+  mockData.segments.forEach((segment) => {
+    const currentType = segment.type === "music" ? "music" : "other";
+    const lastGroup = groupedSegments[groupedSegments.length - 1];
+
+    if (lastGroup && lastGroup.type === currentType) {
+      lastGroup.end = segment.end;
+    } else {
+      groupedSegments.push({
+        type: currentType,
+        start: segment.start,
+        end: segment.end,
+      });
+    }
+  });
 
   return (
     <main>
@@ -69,10 +85,9 @@ export default function Page({
       <hr />
 
       <section>
-        <h2>Speech Segmentation</h2>
-
+        <h2>Timeline Blocks</h2>
         <ol>
-          {mockData.segments.map((segment, index) => {
+          {groupedSegments.map((group, index) => {
             const formatTime = (time: number) => {
               const mins = Math.floor(time / 60);
               const secs = Math.floor(time % 60)
@@ -82,18 +97,18 @@ export default function Page({
             };
 
             return (
-              <li key={index} style={{ marginBottom: "1rem" }}>
+              <li key={index} style={{ marginBottom: "1.5rem" }}>
                 <article>
-                  <h3>{TYPE_LABELS[segment.type] || segment.type}</h3>
+                  <h3>
+                    {group.type === "music" ? "Music Section" : "Other Section"}
+                  </h3>
                   <p>
-                    <time>{formatTime(segment.start)}</time>-<time>{formatTime(segment.end)}</time>（
-                    {(segment.end - segment.start).toFixed(1)}s）
+                    <time>{formatTime(group.start)}</time> -{" "}
+                    <time>{formatTime(group.end)}</time> (
+                    {(group.end - group.start).toFixed(1)}s)
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => handleJump(segment.start)}
-                  >
-                    ▶ Play This
+                  <button type="button" onClick={() => handleJump(group.start)}>
+                    ▶ Play Block
                   </button>
                 </article>
               </li>
